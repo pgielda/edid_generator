@@ -9,13 +9,16 @@
  *************************************************/
 
 #include <stdint.h>
+#include <string.h>
+#include <stdio.h>
 
 typedef struct __attribute__((__packed__)) {
         uint8_t magic[8]; // 00 FF FF FF FF FF FF 00
 	uint16_t manufacturer_id;
 	uint16_t product_id;
 	uint32_t serial_number;
-	uint16_t manufacture_date;
+	uint8_t manufacture_week;
+	uint8_t manufacture_year;
 	uint8_t edid_version;
 	uint8_t edid_revision;
 	uint8_t video_input_type;
@@ -23,7 +26,10 @@ typedef struct __attribute__((__packed__)) {
 	uint8_t vertical_size;
 	uint8_t display_gamma;
 	uint8_t supported_features;
-	uint8_t color_characteristics[10];
+	uint8_t color_characteristics[4];
+	uint16_t green_x_y_msb;
+	uint16_t blue_x_y_msb;
+	uint16_t white_x_y_msb;
 	uint16_t estabilished_supported_timings;
 	uint8_t reserved_timing;
 	uint8_t edid_standard_timings[16];
@@ -95,39 +101,48 @@ int main() {
         hdr->manufacturer_id = 0xAC10;
         hdr->product_id = 0xA0C0;
         hdr->serial_number = 0x3036554C;
-        hdr->manufacture_date = 0x182D;
+        hdr->manufacture_week = 45;
+	hdr->manufacture_year = 2014 - 1990;
         hdr->edid_version = 0x01;
         hdr->edid_revision = 0x03;
-        hdr->video_input_type = 0x80;
-        hdr->horizontal_size = 0x35;
-        hdr->vertical_size = 0x1E;
-        hdr->display_gamma = 0x78;
-        hdr->supported_features = 0xEA;
-	hdr->color_characteristics[0] = 0xE2;
-	hdr->color_characteristics[1] = 0x45;
-	hdr->color_characteristics[2] = 0xA8;
-	hdr->color_characteristics[3] = 0x55;
-	hdr->color_characteristics[4] = 0x4D;
-	hdr->color_characteristics[5] = 0xA3;
-	hdr->color_characteristics[6] = 0x26;
-	hdr->color_characteristics[7] = 0x0B;
-	hdr->color_characteristics[8] = 0x50;
-	hdr->color_characteristics[9] = 0x54;
-	hdr->color_characteristics[10] = 0xA5;
-        hdr->estabilished_supported_timings = 0x004B;
+	#define INPUT_TYPE_DIGITAL (1 << 7)
+        hdr->video_input_type = INPUT_TYPE_DIGITAL;
+	#define DPI 96
+        hdr->horizontal_size = ((1600*25)/DPI)/10;
+        hdr->vertical_size = ((900*25)/DPI)/10;
+        hdr->display_gamma = 220 - 100;
+        hdr->supported_features = 0xEA; // DPMS, etc.
+	hdr->color_characteristics[0] = 0x5E;
+	hdr->color_characteristics[1] = 0xC0;
+	hdr->color_characteristics[2] = 0xA4;
+	hdr->color_characteristics[3] = 0x59;
+        hdr->green_x_y_msb = 0x984A;
+        hdr->blue_x_y_msb = 0x2025;
+        hdr->white_x_y_msb = 0x5450;
+        hdr->estabilished_supported_timings = 0x004B; // 
         hdr->reserved_timing = 0x71;
+
 	hdr->edid_standard_timings[0] = 0x4F;
 	hdr->edid_standard_timings[1] = 0x81;
         hdr->edid_standard_timings[2] = 0x80;
-	hdr->edid_standard_timings[3] = 0xA9;
-	hdr->edid_standard_timings[4] = 0xC0;
-	hdr->edid_standard_timings[5] = 0xA9;
-	hdr->edid_standard_timings[6] = 0x00;
-	hdr->edid_standard_timings[7] = 0x40;
-	hdr->edid_standard_timings[8] = 0xD1;
-	hdr->edid_standard_timings[9] = 0xC0;
-        hdr->edid_standard_timings[10] = 0xE1;
-	hdr->edid_standard_timings[11] =  0x00;
+
+	hdr->edid_standard_timings[3] = (1600/8)-31;
+
+	#define XY_RATIO_16_10  0
+	#define XY_RATIO_4_3    1
+	#define XY_RATIO_5_4    2
+	#define XY_RATIO_16_9   3
+	
+	hdr->edid_standard_timings[4] = (XY_RATIO_16_9 << 6) + 60 - 60; // (XY_RATIO<<6)+VFREQ-60
+
+	// unused, something is wrong, check http://www.edidreader.com/
+	hdr->edid_standard_timings[5] = 0x01;
+	hdr->edid_standard_timings[6] = 0x01;
+	hdr->edid_standard_timings[7] = 0x01;
+	hdr->edid_standard_timings[8] = 0x01;
+	hdr->edid_standard_timings[9] = 0x01;
+        hdr->edid_standard_timings[10] = 0x01;
+	hdr->edid_standard_timings[11] =  0x01;
 	hdr->edid_standard_timings[12] = 0x01;
 	hdr->edid_standard_timings[13] = 0x01;
 	hdr->edid_standard_timings[14] = 0x01;
