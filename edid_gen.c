@@ -42,6 +42,16 @@ typedef struct __attribute__((__packed__)) {
 	uint8_t flags_and_count;
 } edid_cea_861_extension_hdr;
 
+typedef struct __attribute__((__packed__)) {
+        uint8_t minimum_vertical_field_rate;
+        uint8_t maximum_vertical_field_rate;
+        uint8_t minimum_horizontal_line_rate;
+        uint8_t maximum_horizontal_line_rate;
+        uint8_t maximum_pixel_clock_rate;
+        uint8_t reserved; // = 0
+} monitor_timings;
+
+
 uint8_t extension[128];
 uint8_t descriptor[18];
 
@@ -65,19 +75,7 @@ typedef struct __attribute__((__packed__)) {
     uint8_t features;
 } extended_descriptor;
 
-uint8_t fixed_edid[128] = {
- 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
- 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
- 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
- 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
- 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
- 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
- 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
- // desc4
- 0x00, 0x00, 0x00, 0xFD, 0x00, 0x1D, 0x4C, 0x1E, 0x8C, 0x1E, 0x00, 0x0A, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 
-
- 0x00, 0x00,
-};
+uint8_t fixed_edid[128];
 
 void insert_crc(uint8_t *data) {
         uint8_t sum = 0;
@@ -86,6 +84,7 @@ void insert_crc(uint8_t *data) {
 }
 
 int main() {
+        memset(fixed_edid, 0, 128);
         edid_hdr *hdr = (edid_hdr*)fixed_edid;
 	hdr->magic[0] = 0x00;
 	hdr->magic[1] = 0xFF;
@@ -170,19 +169,28 @@ int main() {
         memcpy(fixed_edid + sizeof(edid_hdr), &descriptor, sizeof(descriptor));
 
 	uint8_t *next_descriptor = fixed_edid + sizeof(edid_hdr) + sizeof(descriptor);
-	next_descriptor[3] = 0xFF;
+	next_descriptor[3] = 0xFF; // MONITOR SERIAL NO
 	for (int i = 5; i < 18; i++) next_descriptor[i] = ' ';
-	memcpy(next_descriptor + 5, "P2PC24B406UL\n", strlen("P2PC24B406UL\n"));
+	memcpy(next_descriptor + 5, "P2PC24B406UL", strlen("P2PC24B406UL"));
+	next_descriptor[5 + strlen("P2PC24B406UL")] = 0x0A;
 
 	next_descriptor += sizeof(descriptor);
-	next_descriptor[3] = 0xFC;
+	next_descriptor[3] = 0xFC; // MONITOR NAME
 	for (int i = 5; i < 18; i++) next_descriptor[i] = ' ';
-        memcpy(next_descriptor + 5, "DELL P2415Q\n", strlen("DELL P2415Q\n"));
+        memcpy(next_descriptor + 5, "DELL P2415Q", strlen("DELL P2415Q"));
+	next_descriptor[5 + strlen("P2PC24B406UL")] = 0x0A;
 
 	next_descriptor += sizeof(descriptor);
-        next_descriptor[3] = 0xFD;
-	// TODO
-
+        next_descriptor[3] = 0xFD; // TIMINGS
+        for (int i = 5; i < 18; i++) next_descriptor[i] = ' ';
+        monitor_timings *timings = (monitor_timings*)(next_descriptor + 5);
+        timings->minimum_vertical_field_rate = 29;
+        timings->maximum_vertical_field_rate = 76;
+        timings->minimum_horizontal_line_rate = 30;
+        timings->maximum_horizontal_line_rate = 140;
+        timings->maximum_pixel_clock_rate = 30;
+        timings->reserved = 0;
+        next_descriptor[5 + sizeof(timings)] = 0x0A;
 
         fixed_edid[126] = 1; // extension count;
         insert_crc(fixed_edid);
