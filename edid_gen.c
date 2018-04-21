@@ -84,6 +84,31 @@ void insert_crc(uint8_t *data) {
 }
 
 int main() {
+        extended_descriptor descriptors[7];
+
+        for (int i = 0; i < 7; i++) {
+	        /* cvt 1600 900 60 
+	           Modeline "1600x900_60.00"  118.25  1600 1696 1856 2112  900 903 908 934 -hsync +vsync
+	        */
+	        descriptors[i].clock = 11825; // kHz
+	        descriptors[i].x_act_lsb = 1600 & 0xFF;
+	        descriptors[i].x_blk_lsb = 0x00;
+	        descriptors[i].x_msbs = 0x62;
+	        descriptors[i].y_act_lsb = 0x84;
+	        descriptors[i].y_blk_lsb = 0x22;
+	        descriptors[i].y_msbs = 0x30;
+	        descriptors[i].x_snc_off_lsb = 0x60;
+	        descriptors[i].x_snc_pls_lsb = 0xA0;
+	        descriptors[i].y_snc_lsb = 0x00;
+	        descriptors[i].xy_snc_msbs = 0xA0;
+	        descriptors[i].x_dsp_size = 0xEA;
+	        descriptors[i].y_dsp_size = 0x10;
+	        descriptors[i].dsp_size_mbsb = 0x00;
+	        descriptors[i].x_border = 0x00;
+	        descriptors[i].y_border = 0x1E;
+	        descriptors[i].features = 0x00;
+	}
+
         memset(fixed_edid, 0, 128);
         edid_hdr *hdr = (edid_hdr*)fixed_edid;
 	hdr->magic[0] = 0x00;
@@ -144,46 +169,25 @@ int main() {
 	hdr->edid_standard_timings[14] = 0x01;
 	hdr->edid_standard_timings[15] = 0x01;
 
-	extended_descriptor descriptor;
-	/* cvt 1600 900 60 
-           Modeline "1600x900_60.00"  118.25  1600 1696 1856 2112  900 903 908 934 -hsync +vsync
-        */
-	descriptor.clock = 11825; // kHz
-	descriptor.x_act_lsb = 1600 & 0xFF;
+        memcpy(fixed_edid + sizeof(edid_hdr), &descriptors[0], sizeof(extended_descriptor));
 
-        descriptor.x_blk_lsb = 0x00;
-        descriptor.x_msbs = 0x62;
-        descriptor.y_act_lsb = 0x84;
-        descriptor.y_blk_lsb = 0x22;
-        descriptor.y_msbs = 0x30;
-        descriptor.x_snc_off_lsb = 0x60;
-        descriptor.x_snc_pls_lsb = 0xA0;
-        descriptor.y_snc_lsb = 0x00;
-        descriptor.xy_snc_msbs = 0xA0;
-        descriptor.x_dsp_size = 0xEA;
-        descriptor.y_dsp_size = 0x10;
-        descriptor.dsp_size_mbsb = 0x00;
-        descriptor.x_border = 0x00;
-        descriptor.y_border = 0x1E;
-        descriptor.features = 0x00;
-        memcpy(fixed_edid + sizeof(edid_hdr), &descriptor, sizeof(descriptor));
-
-	uint8_t *next_descriptor = fixed_edid + sizeof(edid_hdr) + sizeof(descriptor);
+	uint8_t *next_descriptor = fixed_edid + sizeof(edid_hdr) + sizeof(extended_descriptor);
 	next_descriptor[3] = 0xFF; // MONITOR SERIAL NO
 	for (int i = 5; i < 18; i++) next_descriptor[i] = ' ';
 	memcpy(next_descriptor + 5, "P2PC24B406UL", strlen("P2PC24B406UL"));
 	next_descriptor[5 + strlen("P2PC24B406UL")] = 0x0A;
 
-	next_descriptor += sizeof(descriptor);
+	next_descriptor += sizeof(extended_descriptor);
 	next_descriptor[3] = 0xFC; // MONITOR NAME
 	for (int i = 5; i < 18; i++) next_descriptor[i] = ' ';
         memcpy(next_descriptor + 5, "DELL P2415Q", strlen("DELL P2415Q"));
 	next_descriptor[5 + strlen("P2PC24B406UL")] = 0x0A;
 
-	next_descriptor += sizeof(descriptor);
+	next_descriptor += sizeof(extended_descriptor);
         next_descriptor[3] = 0xFD; // TIMINGS
         for (int i = 5; i < 18; i++) next_descriptor[i] = ' ';
         monitor_timings *timings = (monitor_timings*)(next_descriptor + 5);
+	// TODO: determing values from descriptors
         timings->minimum_vertical_field_rate = 29;
         timings->maximum_vertical_field_rate = 76;
         timings->minimum_horizontal_line_rate = 30;
@@ -207,7 +211,8 @@ int main() {
 	extension_hdr->flags_and_count = 0x0;
 
         // maximum number of descriptors
-	for (int i = 0; i < 6; i++) memcpy(extension + extension_hdr->pointer + i * sizeof(descriptor), &descriptor, sizeof(descriptor));
+	for (int i = 0; i < 6; i++) memcpy(extension + extension_hdr->pointer + i * sizeof(extended_descriptor), &descriptors[i+1], sizeof(extended_descriptor));
+
         insert_crc(extension);
 	for (int i = 0; i < 128; i++) printf("%02X ", extension[i]);
 	printf("\n");
