@@ -85,8 +85,9 @@ void insert_crc(uint8_t *data) {
 
 int main() {
         extended_descriptor descriptors[7];
+	memset(&descriptors[0], 0, sizeof(extended_descriptor) * 7);
 
-        for (int i = 0; i < 7; i++) {
+        for (int i = 0; i < 4; i++) {
 	        /* cvt 1600 900 60 
 	           Modeline "1600x900_60.00"  118.25  1600 1696 1856 2112  900 903 908 934 -hsync +vsync
 	        */
